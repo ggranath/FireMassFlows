@@ -7,6 +7,17 @@
 # Contact: gustaf.granath@gmail.com
 ############################################################################################
 
+# install.packages("MODIS")
+library(MODIS)
+
+MODISoptions(localArcPath = "/path/to/modis/files", 
+             outDirPath = "/path/to/modis/files/processed")
+
+runGdal("MOD13Q1", collection = "006", # see getCollection("MOD13Q1", forceCheck = TRUE)
+        tileH = 25, tileV = 6, # MODIS tile id
+        begin = "2000.02.18", end = "2000.03.31", # time period
+        SDSstring = "110000000000")
+
 # load packages
 library(MODISTools)
 library(raster)
@@ -23,18 +34,24 @@ bands <- mt_bands(product = "MCD15A2H")
 head(bands)
 av.dates <- mt_dates(product = "MCD15A2H", lat = 59.905809, lon = 16.169129) # dates for this coordinate
 av.dates$date <- as.Date(av.dates$calendar_date)
-av.dates[av.dates$date > as.Date("2014-05-01") & av.dates$date < as.Date("2017-10-01"), ]
+av.dates[av.dates$date > as.Date("2014-05-01") & av.dates$date < as.Date("2019-10-01"), ]
 # Jun 15 to July 29 seems like a good period, gives 6 'images' over the summer
 
 # download data
-st.en <- data.frame( start = c("2014-06-15","2015-06-15","2016-06-15", "2017-06-15"),
-            end = c("2014-07-28", "2015-07-28", "2016-07-28", "2017-07-28"))
+st.en <- data.frame( start = c("2014-06-15","2015-06-15","2016-06-15", "2017-06-15", "2018-06-15", "2019-06-15"),
+            end = c("2014-07-28", "2015-07-28", "2016-07-28", "2017-07-28", "2018-07-28", "2019-07-28"))
 #se <- st.en[2,]
 #se <- droplevels(se)
-lai <- get_modis(product = "MCD15A2H", start.end = st.en, km_lr = 7, km_ab = 8, band = NULL)
+lai <- get_modis(product = "MCD15A2H", start.end = st.en, km_lr = 10, km_ab = 10, band = c("FparLai_QC","FparExtra_QC","Lai_500m"))
+
+#tt <- mt_subset(product= "MCD15A2H", lat = 59.905809, lon = 16.169129, start = as.character(st.en[1,1]),
+#                end = as.character(st.en[1,2]),
+#  km_lr = 0,km_ab = 0,        
+#  site_name = "sitename",out_dir = tempdir(),internal = TRUE,progress = TRUE)
+
 
 get_modis <- function (product = "MCD15A2H", lat = 59.905809, lon = 16.169129, start.end = NULL,
-                            km_lr = 6, km_ab = 8, band = NULL) {
+                            km_lr = NULL, km_ab = NULL, band = NULL) {
   out = list()
   for (i in 1:nrow(start.end)) {
     st <- as.character(start.end[i,1])
@@ -55,15 +72,21 @@ out[[i]] <- mt_subset(product = product,
   return(out)
 }
 # make sure that objects are identical except for dates
-identical(lai[[1]]$header[-c(11:12)], lai[[2]]$header[-c(11:12)]) 
-identical(lai[[3]]$header[-c(11:12)], lai[[4]]$header[-c(11:12)])
+identical(lai[[1]][,-c(13:17,19,21)], lai[[2]][,-c(13:17,19,21)]) 
+identical(lai[[3]][,-c(13:17,19,21)], lai[[4]][,-c(13:17,19,21)]) 
+identical(lai[[5]][,-c(13:17,19,21)], lai[[6]][,-c(13:17,19,21)]) 
 
 # if TRUE, merge the objects
-subset.lai <- rbind(lai[[1]]$data, lai[[2]]$data, 
-                    lai[[3]]$data, lai[[4]]$data)
+subset.lai <- rbind(lai[[1]], lai[[2]], 
+                    lai[[3]], lai[[4]],
+                    lai[[5]], lai[[6]])
+
 #mt_write(subset.lai, "~/") #save data if wanted
 
-metainfo <- lai[[1]]$header
+#to raster function
+#LC_r <- mt_to_raster(df = lai[[1]])
+
+metainfo <- lai[[1]][1,-c(13:17,19,21,22)]
 
 
 #MODISGrid(NoDataValues = list("MCD15A2H" = c("Lai_500m" = rep(254,6))))
@@ -78,7 +101,8 @@ metainfo <- lai[[1]]$header
 
 
 # value 248−255 are NAs 
-subset.lai$data[subset.lai$data > 247] <- NA
+subset.lai$value[subset.lai$value > 247] <- NA
+subset.lai <- subset.lai[,-which(colnames(subset.lai) %in% c("units","scale"))] # remove scale column as it is different for bands
 
 dates <- unique(subset.lai$calendar_date) # save downloaded dates
 # loop to filter each day (bad cells = NA) and produce a raster list
@@ -87,7 +111,7 @@ for (i in 1:length(dates)) {
 data.file <-subset.lai[subset.lai$calendar_date == dates[i],] 
 
 w.mod <- data.file %>% mutate(pixel = factor(pixel,levels=unique(pixel))) %>% 
-  spread(band, data) # data in long format
+  spread(band, value) # put data into wide format (value was before data)
           #qc <- unique(w.mod$FparLai_QC)
           #qc <- qc[order(qc)]
           #for (i in 1:length(qc)) {print(c(tail(rev(as.numeric(intToBits(qc[i]))), 8), qc[i]))}
@@ -146,7 +170,7 @@ lakes.t <- spTransform(lakes, CRS("+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.
 catch.t <- spTransform(catch, CRS("+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs"))
 
 # plot with map
-plot(dd[[2]])
+plot(dd[[6]])
 plot(catch.t, add=T)
 plot(lakes.t, add=T)
 
@@ -167,33 +191,56 @@ lai.nolakes <- mask(dd@raster, SpP_ras, inverse=FALSE)
 v <- raster::extract(lai.nolakes, catch.t, fun = mean, na.rm = TRUE)
 v <- data.frame(catch=catch.t@data$namn, lai=v)
 #real LAI numbers we multiply with 0.1
-v[,2:5] <- v[,2:5]*0.1
+v[,2:7] <- v[,2:7]*0.1
 v 
 # remove 'gottricksbacken' catchment
 v <- v[!(v$catch == "gottricksbacken"),]
-colnames(v)[2:5] <- 2014:2017
-v <- v  %>% gather(year, lai, '2014':'2017') %>% mutate(year, as.numeric(year))
+colnames(v)[2:7] <- 2014:2019
+v <- v  %>% gather(year, lai, '2014':'2019') %>% mutate(year, as.numeric(year))
 v <- v[order(v$catch),]
+v2<-v
+# Add dates
+dd<-ifelse(v$year=="2014", as.POSIXct("2014-07-10 CEST"), 
+                ifelse(v$year=="2015", as.POSIXct("2015-07-10 CEST"), 
+                        ifelse(v$year=="2016", as.POSIXct("2016-07-10 CEST"),
+                                  ifelse(v$year=="2017", as.POSIXct("2017-07-10 CEST"),
+                                                                    ifelse(v$year=="2018", as.POSIXct("2018-07-10 CEST"),
+                                                                                                      as.POSIXct("2018-07-10 CEST"))))))
+v$year_pos <- as.POSIXct(ifelse(v$year=="2014", "2014-07-10 CEST", 
+           ifelse(v$year=="2015", "2015-07-10 CEST", 
+                  ifelse(v$year=="2016", "2016-07-10 CEST",
+                         ifelse(v$year=="2017", "2017-07-10 CEST",
+                                ifelse(v$year=="2018", "2018-07-10 CEST",
+                                       "2019-07-10 CEST"))))))
+
 library(ggplot2)
-lai.fig <- ggplot(v, aes(y=lai, x=year, group=catch, shape=catch)) +
+library(cowplot)
+theme_set(theme_cowplot())
+
+lai.fig <- ggplot(v, aes(y=lai, x=year_pos, group=catch, shape=catch)) +
   geom_path() +
   geom_point(size=3) +
-  ylim(c(0,3.5)) +
+  ylim(c(0,4)) +
+  scale_x_datetime(limits = c(as.POSIXct("2014-05-01 CEST"), as.POSIXct("2019-07-31 CEST")), 
+                   date_breaks = "1 year", date_labels = "%Y") +
   labs(y=expression(paste("Leaf Area Index for June-July")), 
        x= "Year") +
-  theme_bw()  +
-  scale_shape_manual(name=c("Catchment"), breaks = c("garsjobacken", "ladangsbacken", "marrsjobacken",
+  scale_shape_manual(name=c("Catchment"), 
+                     breaks = c("garsjobacken", "ladangsbacken", "marrsjobacken",
                                                      "myckelmossbacken", "vallsjobacken"),
                      values = c(1,2,3,4,5), labels = c("Gärsjöbäcken", "Ladängsbacken", "Märrsjöbäcken",
                                                  "Myckelmossen", "Vallsjöbäcken")) +
-  
+  guides(shape=guide_legend(ncol=2,byrow=TRUE)) +
   theme(legend.justification = c(0, 0), 
-                    legend.position = c(0.62, 0.62),
-                    legend.key.size = unit(2, "line"),
-                    legend.text = element_text(size=12, face = "italic"),
+                    legend.position = c(0.32, 0.72),
+                    legend.key.size = unit(0, "line"),
+                    legend.text = element_text(size=12), #, face = "italic"),
                     legend.title = element_text(size=12),
         axis.text = element_text(size=12),
-        axis.title = element_text(size=14))
+        axis.title = element_text(size=14)) +
+  draw_plot_label("(c)", x= as.POSIXct("2014-08-31 CEST"), y = 3.8, 
+                  hjust = 0, vjust = 0, size=18 )
+
 
 ggsave(lai.fig, file = "lai.png")
 

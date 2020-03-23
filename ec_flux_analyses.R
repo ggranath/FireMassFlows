@@ -9,6 +9,7 @@
 
 library(ggplot2)
 library(cowplot)
+theme_set(theme_cowplot())
 
 # load data
 dat <- read.csv("ec_flux_2014fire.csv")
@@ -44,13 +45,15 @@ f.month <-
   geom_point(size = 2.5, aes(shape=site)) +
   scale_color_discrete(name="Site") +
   ylab(as.expression(bquote('NEE of'~CO[2]*'-C (g' ~m^-2*~month^-1*')'))) + #g CO2-C /m2/month.
-  xlab("Time") +
+  xlab("") +
   geom_hline(yintercept = 0, linetype="dotted") +
   scale_shape_manual(name="Site", values=c(1, 19),
                      labels = c("North", "South")) + 
   #scale_y_continuous(breaks=seq(0,160, 20), limits= c(-20,160)) +
   scale_y_continuous(breaks=seq(-5,50, 5), limits= c(-5,50)) +
-  theme(legend.position=c(0.8,0.9),
+  scale_x_datetime(limits = c(as.POSIXct("2014-05-01 CEST"), as.POSIXct("2019-07-31 CEST")), 
+                   date_breaks = "1 year", date_labels = "%Y") +
+  theme(legend.position=c(0.55,0.9),
         plot.title=element_text(hjust=0, face=1)) +
   draw_plot_label("(a)", x= as.POSIXct("2014-08-31 CEST"), y = 50, 
                   hjust = 0, vjust = 0, size=18 )
@@ -66,7 +69,7 @@ ggplot(data = dat.months.sub, aes(x = date, y = NEEsum, group = site)) +
   geom_point(size = 2.5, aes(shape=site)) +
   scale_color_discrete(name="Site") +
   ylab(as.expression(bquote('Cumulative NEE of'~CO[2]*'-C (g' ~m^-2*')'))) + #g CO2-C /m2.
-  xlab("Time") +
+  xlab("") +
   geom_hline(yintercept = 0, linetype="dotted") +
   #labs(x="", title = paste("(",labels[i],")", sep="")) +
   #geom_vline(xintercept = as.numeric(fire.day), linetype="dotted") +
@@ -74,12 +77,21 @@ ggplot(data = dat.months.sub, aes(x = date, y = NEEsum, group = site)) +
                      labels = c("North", "South")) + 
   #scale_y_continuous(breaks=seq(0,3000, 250), limits= c(0,3000)) +
   scale_y_continuous(breaks=seq(0,750, 100), limits= c(0,750)) +
-  theme(legend.position=c(0.8,0.9),
+  scale_x_datetime(limits = c(as.POSIXct("2014-05-01 CEST"), as.POSIXct("2019-07-31 CEST")), 
+      date_breaks = "1 year", date_labels = "%Y") +
+  theme(legend.position=c(0.55,0.9),
         plot.title=element_text(hjust=0, face=1)) +
-  draw_plot_label("(b)", x= as.POSIXct("2014-08-31 CEST"), y = 750, 
+  draw_plot_label("(b)", x= as.POSIXct("2014-08-31 CEST"), y = 725, 
                   hjust = 0, vjust = 0, size=18 )
-neefig <- plot_grid(f.month, f.month.sum, ncol=1,  align = "v")
-save_plot("fig2_nee_c.png", neefig, base_height = NULL, base_aspect_ratio = 1, base_width = 9)
+
+# BEFORE SAVING FIGURE!
+# Go to lai_modis.R and create lai panel (lai.fig) 
+neefig <- plot_grid(f.month, f.month.sum, lai.fig, ncol=1,  align = "v")
+#save_plot("fig2_nee_c_rev.png", neefig, base_height = NULL, base_asp = 0.55, base_width = 6)
+save_plot("fig2_nee_c_rev.pdf", neefig, base_height = NULL, base_asp = 0.55, base_width = 6)
+
+# Add LAI data
+
 
 # Amount C 
 # First year August-August

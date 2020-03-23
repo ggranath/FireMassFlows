@@ -35,7 +35,7 @@ sums$outflow <- (sums[,2]/(c(1,1,2170,1,1440, 374, 930, 1830)*10000)) #get outfl
 flowsum.1415  <- flow[flow$time > "2014-08-01" & flow$time < "2015-07-31",]
 flowsum.1516  <- flow[flow$time > "2015-08-01" & flow$time < "2016-07-31",]
 flowsum.1617  <- flow[flow$time > "2016-08-01" & flow$time < "2017-07-31",]
-
+  
 sums.1415 <- aggregate(q_m3_s ~ catch, flowsum.1415, mean)
 sums.1415[,2] <- sums.1415[,2]*60*60*24*365 #m3 per year per catchment
 sums.1415$outflow <- (sums.1415[,2]/(c(1,1,2170,1,1440, 374, 930, 1830)*10000)) #get outflow in meter per year 
@@ -75,18 +75,30 @@ cvsf.val <- merge(flow.val, chem.str.sub, by.x = "time.pos", by.y = "time")
 
 # run regressions for all elements and print R2 values
 # Gärsjöbäcken
+  #2010 to 2014-07-31
+  cvsf.gar10_14 <- cvsf.gar[cvsf.gar$time > "2010-01-01" & cvsf.gar$time < "2014-07-31",]
   for(i in 8:13){
-  reg = lm(cvsf.gar$q_m3_s ~ cvsf.gar[,i])
+  reg = lm(cvsf.gar10_14$q_m3_s ~ cvsf.gar10_14[,i])
   print(paste(round(summary(reg)$r.squared*100, digits=1), colnames(cvsf.gar)[i], sep = "   "))
   }  
-# Flow can only explain as much as 10% of stream concentration (for K)
+# Flow can only explain much before fire event. Most 19% of stream concentration for Ca.
+# So not that great predictor.
+  
+  #2014-07-31 to 2017-12-18
+  cvsf.gar14_17 <- cvsf.gar[cvsf.gar$time > "2014-07-31" & cvsf.gar$time < "2017-12-31",]
+  for(i in 8:13){
+  reg = lm(cvsf.gar14_17$q_m3_s ~ cvsf.gar14_17[,i])
+  print(paste(round(summary(reg)$r.squared*100, digits=1), colnames(cvsf.gar)[i], sep = "   "))
+  }  
+# Flow can actually explain stream concentration a bit better after the fire.
+# But only as much as 21% for S,N and K (TOC 2.3%).
 # So not that great predictor.
 
 # Vallsjöbäcken
   for(i in 8:13){
     reg = lm(cvsf.val$q_m3_s ~ cvsf.val[,i])
     print(paste(round(summary(reg)$r.squared*100, digits=1), colnames(cvsf.val)[i], sep = "   "))
-    # Flow can only explain as much as 8% of stream concentration (for K)
+    # Flow can only explain as much as 17% of stream concentration (for K)
     # So not that great predictor.
   }    
 # Make Figure S1 plot: conc vs flow ####
