@@ -4,7 +4,7 @@
 # "The impact of wildfire on biogeochemical fluxes and water quality on boreal catchments" 
 # Granath et al.
 # 
-# Contact: gustaf.granath@gmail.com
+# Contact: gustaf.granath@gmail.com 
 ############################################################################################
 
 # this script takes raw data and produces two objects: 

@@ -1,5 +1,5 @@
 ############################################################################################
-# Calculate direct C and N loss from soil and ground vegetation
+# Calculate direct C and N loss from soil and ground vegetation 
 #
 # "The impact of wildfire on biogeochemical fluxes and water quality on boreal catchments" 
 # Granath et al.

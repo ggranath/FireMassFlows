@@ -1,5 +1,5 @@
 ############################################################################################
-# Analyses of water quality
+# Analyses of water quality 
 #
 # "The impact of wildfire on biogeochemical fluxes and water quality on boreal catchments" 
 # Granath et al.

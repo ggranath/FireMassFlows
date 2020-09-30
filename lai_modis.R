@@ -8,15 +8,15 @@
 ############################################################################################
 
 # install.packages("MODIS")
-library(MODIS)
-
-MODISoptions(localArcPath = "/path/to/modis/files", 
-             outDirPath = "/path/to/modis/files/processed")
-
-runGdal("MOD13Q1", collection = "006", # see getCollection("MOD13Q1", forceCheck = TRUE)
-        tileH = 25, tileV = 6, # MODIS tile id
-        begin = "2000.02.18", end = "2000.03.31", # time period
-        SDSstring = "110000000000")
+#library(MODIS)
+# 
+# MODISoptions(localArcPath = "/path/to/modis/files", 
+#              outDirPath = "/path/to/modis/files/processed")
+# 
+# runGdal("MOD13Q1", collection = "006", # see getCollection("MOD13Q1", forceCheck = TRUE)
+#         tileH = 25, tileV = 6, # MODIS tile id
+#         begin = "2000.02.18", end = "2000.03.31", # time period
+#         SDSstring = "110000000000")
 
 # load packages
 library(MODISTools)
@@ -166,13 +166,17 @@ plot(dd)
 require(rgdal)
 catch <- readOGR(dsn = "./catch", layer = "catchments")
 lakes <- readOGR(dsn = "./catch", layer = "lakes")
+burnt <- readOGR(dsn = "./catch", layer = "burnt_area")
 lakes.t <- spTransform(lakes, CRS("+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs"))
 catch.t <- spTransform(catch, CRS("+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs"))
+burnt.t <- spTransform(burnt, CRS("+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs"))
+
 
 # plot with map
 plot(dd[[6]])
 plot(catch.t, add=T)
 plot(lakes.t, add=T)
+plot(burnt.t, add=T, lwd=2)
 
 #d2[lakes[,]] <- 100
 #d3 <- mask(d2, lakes, inverse=TRUE)
@@ -183,6 +187,24 @@ plot(lakes.t, add=T)
 SpP_ras <- rasterize(lakes.t, dd[[1]], getCover=TRUE)
 SpP_ras[SpP_ras > 25] <- NA
 lai.nolakes <- mask(dd@raster, SpP_ras, inverse=FALSE)
+
+catch.onlyburnt <- rgeos::gIntersection(catch.t, burnt.t, 
+                                        byid=TRUE) 
+#catch.onlyburnt <- intersect(catch.t, burnt.t 
+                                        ) 
+#aa <- rgeos::gDifference(catch.t, burnt.t, byid=T)
+#plot(aa)
+
+catch.onlyburnt <-catch.onlyburnt[c(1,3:7)]
+new_IDs = c("garsjobacken", "vallsjobacken","gottricksbacken",  
+                         "ladangsbacken", "marrsjobacken", "myckelmossbacken")
+for (i in 1:length(slot(catch.onlyburnt, "polygons"))) {
+  slot(slot(catch.onlyburnt, "polygons")[[i]], "ID") = new_IDs[i]
+}
+
+plot(catch.onlyburnt[1])
+plot(catch.t[1])
+catch.t@data
 
 #plot(lai.nolakes)
 #plot(lakes.t,  add=TRUE)
@@ -198,7 +220,6 @@ v <- v[!(v$catch == "gottricksbacken"),]
 colnames(v)[2:7] <- 2014:2019
 v <- v  %>% gather(year, lai, '2014':'2019') %>% mutate(year, as.numeric(year))
 v <- v[order(v$catch),]
-v2<-v
 # Add dates
 dd<-ifelse(v$year=="2014", as.POSIXct("2014-07-10 CEST"), 
                 ifelse(v$year=="2015", as.POSIXct("2015-07-10 CEST"), 
@@ -213,13 +234,44 @@ v$year_pos <- as.POSIXct(ifelse(v$year=="2014", "2014-07-10 CEST",
                                 ifelse(v$year=="2018", "2018-07-10 CEST",
                                        "2019-07-10 CEST"))))))
 
+
+# extract values per catchment of area burnt
+v2 <- raster::extract(lai.nolakes, catch.onlyburnt, fun = mean, na.rm = TRUE)
+v2 <- data.frame(catch=new_IDs, lai=v2)
+#real LAI numbers we multiply with 0.1
+v2[,2:7] <- v2[,2:7]*0.1
+v2 
+# remove 'gottricksbacken' catchment
+v2 <- v2[!(v2$catch == "gottricksbacken"),]
+colnames(v2)[2:7] <- 2014:2019
+v2 <- v2  %>% gather(year, lai, '2014':'2019') %>% mutate(year, as.numeric(year))
+v2 <- v2[order(v2$catch),]
+
+# Add dates
+dd2<-ifelse(v2$year=="2014", as.POSIXct("2014-07-10 CEST"), 
+           ifelse(v2$year=="2015", as.POSIXct("2015-07-10 CEST"), 
+                  ifelse(v2$year=="2016", as.POSIXct("2016-07-10 CEST"),
+                         ifelse(v2$year=="2017", as.POSIXct("2017-07-10 CEST"),
+                                ifelse(v2$year=="2018", as.POSIXct("2018-07-10 CEST"),
+                                       as.POSIXct("2018-07-10 CEST"))))))
+v2$year_pos <- as.POSIXct(ifelse(v2$year=="2014", "2014-07-10 CEST", 
+                                ifelse(v2$year=="2015", "2015-07-10 CEST", 
+                                       ifelse(v2$year=="2016", "2016-07-10 CEST",
+                                              ifelse(v2$year=="2017", "2017-07-10 CEST",
+                                                     ifelse(v2$year=="2018", "2018-07-10 CEST",
+                                                            "2019-07-10 CEST"))))))
+
+
 library(ggplot2)
 library(cowplot)
 theme_set(theme_cowplot())
 
-lai.fig <- ggplot(v, aes(y=lai, x=year_pos, group=catch, shape=catch)) +
+# plot burnt area of the catchment
+lai.fig <- ggplot(v2, aes(y=lai, x=year_pos, group=catch, shape=catch)) +
   geom_path() +
   geom_point(size=3) +
+  #geom_path(data=v2, aes(y=lai, x=year_pos, group=catch, shape=catch), col="red") +
+  #geom_point(data=v2, aes(y=lai, x=year_pos, group=catch, shape=catch), size=3, col="red") +
   ylim(c(0,4)) +
   scale_x_datetime(limits = c(as.POSIXct("2014-05-01 CEST"), as.POSIXct("2019-07-31 CEST")), 
                    date_breaks = "1 year", date_labels = "%Y") +
@@ -240,6 +292,7 @@ lai.fig <- ggplot(v, aes(y=lai, x=year_pos, group=catch, shape=catch)) +
         axis.title = element_text(size=14)) +
   draw_plot_label("(c)", x= as.POSIXct("2014-08-31 CEST"), y = 3.8, 
                   hjust = 0, vjust = 0, size=18 )
+
 
 
 ggsave(lai.fig, file = "lai.png")

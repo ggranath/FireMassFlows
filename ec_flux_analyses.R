@@ -88,9 +88,7 @@ ggplot(data = dat.months.sub, aes(x = date, y = NEEsum, group = site)) +
 # Go to lai_modis.R and create lai panel (lai.fig) 
 neefig <- plot_grid(f.month, f.month.sum, lai.fig, ncol=1,  align = "v")
 #save_plot("fig2_nee_c_rev.png", neefig, base_height = NULL, base_asp = 0.55, base_width = 6)
-save_plot("fig2_nee_c_rev.pdf", neefig, base_height = NULL, base_asp = 0.55, base_width = 6)
-
-# Add LAI data
+save_plot("fig2_nee_c_rev_bigeosci.pdf", neefig, base_height = NULL, base_asp = 0.55, base_width = 6)
 
 
 # Amount C 

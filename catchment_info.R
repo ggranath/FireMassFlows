@@ -1,5 +1,5 @@
 ############################################################################################
-# Calculate proportion peatland, lakes, burned area etc
+# Calculate proportion peatland, lakes, burned area etc 
 #
 # "The impact of wildfire on biogeochemical fluxes and water quality on boreal catchments" 
 # Granath et al.
