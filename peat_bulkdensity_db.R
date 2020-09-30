@@ -1,5 +1,5 @@
 ############################################################################################
-# Get peat bulk densities for C-N loss calculations of peatlands 
+# Get peat bulk densities for C-N loss calculations of peatlands  
 #
 # "The impact of wildfire on biogeochemical fluxes and water quality on boreal catchments" 
 # Granath et al.
